@@ -1,3 +1,5 @@
+// Copyright © 2024 Ken Robertson <ken@invalidlogic.com>
+
 package types
 
 type PlotRequest struct {
