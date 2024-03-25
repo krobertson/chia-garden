@@ -51,7 +51,7 @@ func init() {
 	viper.BindEnv("harvester.http_port")
 
 	HarvesterCmd.Flags().StringSliceVarP(&harvesterPaths, "path", "p", nil, "Path to store plots")
-	HarvesterCmd.Flags().StringSliceVarP(&expandPaths, "expand-path", "", nil, "Path containing multiple directories to store plots")
+	HarvesterCmd.Flags().StringSliceVarP(&expandPaths, "expand-path", "x", nil, "Path containing multiple directories to store plots")
 	HarvesterCmd.Flags().Int64VarP(&maxTransfers, "max-transfers", "t", viper.GetInt64("harvester.max_transfers"), "Max concurrent transfers")
 	HarvesterCmd.Flags().StringVarP(&httpServerIP, "http-ip", "", viper.GetString("harvester.http_ip"), "IP to use to identify itself (mainly need if in Docker)")
 	HarvesterCmd.Flags().IntVarP(&httpServerPort, "http-port", "", viper.GetInt("harvester.http_port"), "Port to handle transfers")

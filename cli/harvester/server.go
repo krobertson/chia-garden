@@ -217,9 +217,11 @@ func (h *harvester) httpHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// open the file and transfer
-	f, err := os.Create(req.URL.Path)
+	tmpfile := req.URL.Path + ".tmp"
+	os.Remove(tmpfile)
+	f, err := os.Create(tmpfile)
 	if err != nil {
-		log.Printf("Failed to open file at %s: %v", req.URL.Path, err)
+		log.Printf("Failed to open file at %s: %v", tmpfile, err)
 		w.WriteHeader(500)
 		plotPath.pause()
 		return
@@ -231,23 +233,34 @@ func (h *harvester) httpHandler(w http.ResponseWriter, req *http.Request) {
 	start := time.Now()
 	bytes, err := io.Copy(f, req.Body)
 	if err != nil {
-		log.Printf("Failure while writing plot %s: %v", req.URL.Path, err)
+		log.Printf("Failure while writing plot %s: %v", tmpfile, err)
 		f.Close()
-		os.Remove(req.URL.Path)
+		os.Remove(tmpfile)
 		w.WriteHeader(500)
 		plotPath.pause()
 		return
 	}
 
-	// update free space
-	plotPath.updateFreeSpace()
-	h.sortPaths()
+	// rename it so it can be used by the chia harvester
+	err = os.Rename(tmpfile, req.URL.Path)
+	if err != nil {
+		log.Printf("Failed to rename final plot %s: %v", req.URL.Path, err)
+		f.Close()
+		os.Remove(tmpfile)
+		w.WriteHeader(500)
+		plotPath.pause()
+		return
+	}
 
 	// log successful and some metrics
 	seconds := time.Since(start).Seconds()
 	log.Printf("Successfully stored %s (%s, %f secs, %s/sec)",
 		req.URL.Path, humanize.IBytes(uint64(bytes)), seconds, humanize.Bytes(uint64(float64(bytes)/seconds)))
 	w.WriteHeader(201)
+
+	// update free space
+	plotPath.updateFreeSpace()
+	h.sortPaths()
 }
 
 // generateTaint will calculate how long to delay the response based on current
