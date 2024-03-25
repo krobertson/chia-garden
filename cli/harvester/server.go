@@ -25,6 +25,10 @@ const (
 	taintFreeSpace = 20 * time.Millisecond
 )
 
+var (
+	systemHostname, _ = os.Hostname()
+)
+
 type harvester struct {
 	plots       map[string]*plotPath
 	sortedPlots []*plotPath
@@ -108,6 +112,37 @@ func (h *harvester) PlotReady(req *types.PlotRequest) (*types.PlotResponse, erro
 	d := h.generateTaint(plot)
 	time.Sleep(d)
 	return resp, nil
+}
+
+// PlotLocate is used to check if any harvesters have the specified plot. This
+// is primarily used when a plotter is starting up and has some existing plots
+// present. Returns a nil PlotLocateResponse if the plot does not exist.
+func (h *harvester) PlotLocate(req *types.PlotLocateRequest) (*types.PlotLocateResponse, error) {
+	for k := range h.plots {
+		fullpath := filepath.Join(k, req.Name)
+		fi, err := os.Stat(fullpath)
+
+		// if it returns a not exists error, continue on looping
+		if os.IsNotExist(err) {
+			continue
+		}
+
+		// check other errors
+		if err != nil {
+			log.Printf("Error checking for file %s: %v", fullpath, err)
+		}
+
+		// check the size to see if it is a match
+		if fi.Size() == int64(req.Size) {
+			return &types.PlotLocateResponse{
+				Hostname: systemHostname,
+			}, nil
+		}
+
+		log.Printf("IMPORTANT: Processed PlotLocate request for %q and sizes did not match. Check validity of the plot file.", fullpath)
+	}
+
+	return nil, nil
 }
 
 // httpHandler faciliates the transfer of plot files from the plotters to the

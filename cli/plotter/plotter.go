@@ -4,10 +4,13 @@ package plotter
 
 import (
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/krobertson/chia-garden/cli"
 	"github.com/krobertson/chia-garden/pkg/rpc"
+	"github.com/krobertson/chia-garden/pkg/types"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/nats-io/nats.go"
@@ -100,15 +103,69 @@ func cmdPlotter(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	// Add the plots path to the watcher
+	// Check for existing files and add the path to the watcher
+	existingFiles := make([]string, 0)
 	for _, path := range plotterPaths {
+		files, err := os.ReadDir(path)
+		if err != nil {
+			log.Fatalf("Failed to list files for path %s: %v", path, err)
+		}
+		for _, de := range files {
+			name := de.Name()
+
+			// filter to only *.plot files
+			if !strings.HasSuffix(name, ".plot") {
+				continue
+			}
+
+			existingFiles = append(existingFiles, filepath.Join(path, name))
+		}
+
 		err = watcher.Add(path)
 		if err != nil {
 			log.Fatal("Failed to watch plots path", err)
 		}
 	}
 
-	// Block main goroutine forever.
 	log.Print("Ready")
+
+	// Loop and check the existing files for plots
+	for _, file := range existingFiles {
+		fi, err := os.Stat(file)
+		if err != nil {
+			log.Printf("Failed to check info on plot %s, removing and continuing: %v", file, err)
+			os.Remove(file)
+			continue
+		}
+
+		// do request to see if any nodes have it
+		req := &types.PlotLocateRequest{
+			Name: filepath.Base(file),
+			Size: uint64(fi.Size()),
+		}
+		resp, err := client.PlotLocate(req)
+
+		// if a valid resp and no error, it does exist, so remove and continue
+		if resp != nil && err == nil {
+			log.Printf("Plot %s already exists, cleaning up", file)
+			os.Remove(file)
+			continue
+		}
+
+		// if resp is nil and err is a timeout error, it does not exist, send it
+		if resp == nil && err == nats.ErrTimeout {
+			log.Printf("Plot %s not on harvesters, queuing to send...", file)
+			plotqueue <- file
+			continue
+		}
+
+		// other error, log and continue
+		if err != nil {
+			log.Printf("Other error from NATS locate request: %v", err)
+			continue
+		}
+	}
+
+	// Block main goroutine forever.
 	<-make(chan struct{})
 }

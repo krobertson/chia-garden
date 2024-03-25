@@ -8,4 +8,5 @@ import (
 
 type Harvester interface {
 	PlotReady(*types.PlotRequest) (*types.PlotResponse, error)
+	PlotLocate(*types.PlotLocateRequest) (*types.PlotLocateResponse, error)
 }

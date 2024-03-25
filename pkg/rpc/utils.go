@@ -20,13 +20,13 @@ type natsResponse struct {
 	Error  *string         `json:"error"`
 }
 
-func request(client *nats.Conn, subj string, in interface{}, out interface{}) error {
+func request(client *nats.Conn, subj string, in interface{}, out interface{}, timeout time.Duration) error {
 	data, err := json.Marshal(in)
 	if err != nil {
 		return err
 	}
 
-	msg, err := client.Request(subj, data, time.Second*5)
+	msg, err := client.Request(subj, data, timeout)
 	if err != nil {
 		return err
 	}

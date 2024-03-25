@@ -24,7 +24,12 @@ func NewNatsHarvesterListener(client *nats.Conn, handler Harvester) (*NatsHarves
 }
 
 func (w *NatsHarvesterListener) RegisterHandlers() error {
-	_, err := w.client.Subscribe(subjPlotReady, w.handlerPlot)
+	_, err := w.client.Subscribe(subjPlotReady, w.handlerPlotReady)
+	if err != nil {
+		return err
+	}
+
+	_, err = w.client.Subscribe(subjPlotLocate, w.handlerPlotLocate)
 	if err != nil {
 		return err
 	}
@@ -32,7 +37,7 @@ func (w *NatsHarvesterListener) RegisterHandlers() error {
 	return w.client.Flush()
 }
 
-func (d *NatsHarvesterListener) handlerPlot(msg *nats.Msg) {
+func (d *NatsHarvesterListener) handlerPlotReady(msg *nats.Msg) {
 	var req *types.PlotRequest
 	if err := json.Unmarshal(msg.Data, &req); err != nil {
 		log.Println("Failed to unmarshal rig")
@@ -40,6 +45,19 @@ func (d *NatsHarvesterListener) handlerPlot(msg *nats.Msg) {
 	}
 
 	resp, err := d.handler.PlotReady(req)
+	if resp != nil || err != nil {
+		d.respond(msg, resp, err)
+	}
+}
+
+func (d *NatsHarvesterListener) handlerPlotLocate(msg *nats.Msg) {
+	var req *types.PlotLocateRequest
+	if err := json.Unmarshal(msg.Data, &req); err != nil {
+		log.Println("Failed to unmarshal rig")
+		return
+	}
+
+	resp, err := d.handler.PlotLocate(req)
 	if resp != nil || err != nil {
 		d.respond(msg, resp, err)
 	}

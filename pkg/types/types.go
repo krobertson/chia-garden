@@ -13,10 +13,9 @@ type PlotResponse struct {
 
 type PlotLocateRequest struct {
 	Name string `json:"name"`
+	Size uint64 `json:"size"`
 }
 
 type PlotLocateResponse struct {
-	Name string `json:"name"`
-	Size uint64 `json:"size"`
-	Sha1 string `json:"sha1sum"`
+	Hostname string `json:"hostname"`
 }
