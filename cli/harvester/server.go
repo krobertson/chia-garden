@@ -3,14 +3,12 @@
 package harvester
 
 import (
-	"cmp"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -223,6 +221,7 @@ func (h *harvester) httpHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Printf("Failed to open file at %s: %v", req.URL.Path, err)
 		w.WriteHeader(500)
+		plotPath.pause()
 		return
 	}
 	defer f.Close()
@@ -236,6 +235,7 @@ func (h *harvester) httpHandler(w http.ResponseWriter, req *http.Request) {
 		f.Close()
 		os.Remove(req.URL.Path)
 		w.WriteHeader(500)
+		plotPath.pause()
 		return
 	}
 
@@ -248,34 +248,6 @@ func (h *harvester) httpHandler(w http.ResponseWriter, req *http.Request) {
 	log.Printf("Successfully stored %s (%s, %f secs, %s/sec)",
 		req.URL.Path, humanize.IBytes(uint64(bytes)), seconds, humanize.Bytes(uint64(float64(bytes)/seconds)))
 	w.WriteHeader(201)
-}
-
-// sortPaths will update the order of the plotPaths inside the harvester's
-// sortedPaths slice. This should be done after every file transfer when the
-// free space is updated.
-func (h *harvester) sortPaths() {
-	h.sortMutex.Lock()
-	defer h.sortMutex.Unlock()
-
-	slices.SortStableFunc(h.sortedPlots, func(a, b *plotPath) int {
-		return cmp.Compare(b.freeSpace, a.freeSpace)
-	})
-}
-
-// pickPlot will return which plot path would be most ideal for the current
-// request. It will order the one with the most free space that doesn't already
-// have an active transfer.
-func (h *harvester) pickPlot() *plotPath {
-	h.sortMutex.Lock()
-	defer h.sortMutex.Unlock()
-
-	for _, v := range h.sortedPlots {
-		if v.busy.Load() {
-			continue
-		}
-		return v
-	}
-	return nil
 }
 
 // generateTaint will calculate how long to delay the response based on current
