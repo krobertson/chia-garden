@@ -35,6 +35,7 @@ type harvester struct {
 	sortMutex   sync.Mutex
 	hostPort    string
 	transfers   atomic.Int64
+	httpServer  *http.Server
 }
 
 // newHarvester will create a the harvester server process and validate all of
@@ -79,9 +80,13 @@ func newHarvester(paths []string) (*harvester, error) {
 	// sort the paths
 	h.sortPaths()
 
-	// FIXME ideally handle graceful shutdown of existing transfers
+	// set up the http server
+	h.httpServer = &http.Server{
+		Addr:    fmt.Sprintf(":%d", httpServerPort),
+		Handler: http.DefaultServeMux,
+	}
 	http.HandleFunc("/", h.httpHandler)
-	go http.ListenAndServe(fmt.Sprintf(":%d", httpServerPort), nil)
+	go h.httpServer.ListenAndServe()
 
 	return h, nil
 }

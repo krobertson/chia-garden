@@ -3,7 +3,11 @@
 package harvester
 
 import (
+	"context"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/krobertson/chia-garden/cli"
 	"github.com/krobertson/chia-garden/pkg/rpc"
@@ -74,7 +78,27 @@ func cmdHarvester(cmd *cobra.Command, args []string) {
 		log.Fatal("Failed to initialize NATS listener: ", err)
 	}
 
+	// add TERM signal handling to call to http shutdown
+	shutdown := make(chan struct{})
+	go func() {
+		sigint := make(chan os.Signal, 1)
+		signal.Notify(sigint, os.Interrupt, syscall.SIGTERM)
+		<-sigint
+
+		// close nats connection
+		conn.Close()
+
+		// http shutdown and wait for requests to finish
+		err := server.httpServer.Shutdown(context.Background())
+		if err != nil {
+			log.Printf("HTTP server Shutdown: %v", err)
+		}
+
+		// close channel to exit
+		close(shutdown)
+	}()
+
 	// Block main goroutine forever.
 	log.Print("Ready")
-	<-make(chan struct{})
+	<-shutdown
 }
