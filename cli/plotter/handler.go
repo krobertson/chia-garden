@@ -10,9 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dustin/go-humanize"
 	"github.com/krobertson/chia-garden/pkg/rpc"
 	"github.com/krobertson/chia-garden/pkg/types"
+
+	"github.com/dustin/go-humanize"
 )
 
 var (
@@ -80,21 +81,26 @@ func handlePlot(client *rpc.NatsPlotterClient, plot string) {
 			continue
 		}
 
-		// FIXME better handle various error codes
-		if httpresp.StatusCode != 201 {
-			log.Print("Received bad response", httpresp.StatusCode, httpresp.Status)
+		switch httpresp.StatusCode {
+		case 201: // success
+			f.Close()
+			seconds := time.Since(start).Seconds()
+			log.Printf("Finished transfering plot %s (%s, %f secs, %s/sec)",
+				plot, humanize.IBytes(uint64(req.Size)), seconds, humanize.Bytes(uint64(float64(req.Size)/seconds)))
+			os.Remove(plot)
+			return
+
+		case 500: // transfer failure due to server error, wait a minute and retry
+			log.Print("Received 500 status code from server. Sleep and retry.", httpresp.Status)
 			f.Close()
 			time.Sleep(time.Minute)
 			continue
-		}
 
-		// all done now
-		f.Close()
-		seconds := time.Since(start).Seconds()
-		log.Printf("Finished transfering plot %s (%s, %f secs, %s/sec)",
-			plot, humanize.IBytes(uint64(req.Size)), seconds, humanize.Bytes(uint64(float64(req.Size)/seconds)))
-		os.Remove(plot)
-		return
+		default: // other failures should immediately retry
+			log.Printf("Received %d status code from server, retry ready request immediately.", httpresp.StatusCode)
+			f.Close()
+			continue
+		}
 	}
 
 	// Too many retries, log and continue
