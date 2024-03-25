@@ -60,7 +60,7 @@ func newHarvester(paths []string) (*harvester, error) {
 
 		fi, err := os.Stat(p)
 		if err != nil {
-			log.Printf("Path %s failed validation: %v, skipping", p, err)
+			log.Printf("Path %s failed validation, skipping: %v", p, err)
 			continue
 		}
 
@@ -258,7 +258,7 @@ func (h *harvester) sortPaths() {
 	defer h.sortMutex.Unlock()
 
 	slices.SortStableFunc(h.sortedPlots, func(a, b *plotPath) int {
-		return cmp.Compare(a.freeSpace, b.freeSpace)
+		return cmp.Compare(b.freeSpace, a.freeSpace)
 	})
 }
 

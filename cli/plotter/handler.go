@@ -71,7 +71,7 @@ func handlePlot(client *rpc.NatsPlotterClient, plot string) {
 		httpreq.ContentLength = int64(req.Size)
 
 		start := time.Now()
-		log.Printf("Sending plot %s to %s/%s", plot, resp.Hostname, resp.Store)
+		log.Printf("Sending plot %s to %s:%s", plot, resp.Hostname, resp.Store)
 		httpresp, err := http.DefaultTransport.RoundTrip(httpreq)
 		if err != nil {
 			log.Print("HTTP transfer failed", err)
