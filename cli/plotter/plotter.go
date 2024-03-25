@@ -8,10 +8,11 @@ import (
 
 	"github.com/krobertson/chia-garden/cli"
 	"github.com/krobertson/chia-garden/pkg/rpc"
-	"github.com/spf13/cobra"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/nats-io/nats.go"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // plotterCmd represents the plotter command
@@ -25,24 +26,38 @@ plotter nodes and to find and transport them to a harvester for use.`,
 	}
 
 	plotterPaths []string
+	maxTransfers int
 )
 
 func init() {
 	cli.RootCmd.AddCommand(PlotterCmd)
 
+	viper.SetDefault("plotter.max_transfers", 2)
+
+	viper.BindEnv("plotter.max_transfers")
+
 	PlotterCmd.Flags().StringSliceVarP(&plotterPaths, "path", "p", nil, "Paths to watch for plots")
+	PlotterCmd.Flags().IntVarP(&maxTransfers, "max-transfers", "t", viper.GetInt("plotter.max_transfers"), "Max concurrent transfers")
+
+	viper.BindPFlag("plotter.max_transfers", PlotterCmd.Flags().Lookup("max-transfers"))
 }
 
 func cmdPlotter(cmd *cobra.Command, args []string) {
 	log.Print("Starting plotter-client...")
 
+	// connect to nats
 	conn, err := nats.Connect(cli.NatsUrl, nats.MaxReconnects(-1))
 	if err != nil {
 		log.Fatal("Failed to connect to NATS: ", err)
 	}
 	defer conn.Close()
 
+	// initialize client and create fixed worker routines
 	client := rpc.NewNatsPlotterClient(conn)
+	plotqueue := make(chan string, 1024)
+	for i := 0; i < maxTransfers; i++ {
+		go plotworker(client, plotqueue)
+	}
 
 	// begin watching the plots directory
 	watcher, err := fsnotify.NewWatcher()
@@ -73,7 +88,7 @@ func cmdPlotter(cmd *cobra.Command, args []string) {
 
 				// found new plot
 				log.Printf("New plot created %s", event.Name)
-				go handlePlot(client, event.Name)
+				plotqueue <- event.Name
 
 			case err, ok := <-watcher.Errors:
 				if !ok {

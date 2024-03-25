@@ -7,9 +7,11 @@ import (
 
 	"github.com/krobertson/chia-garden/cli"
 	"github.com/krobertson/chia-garden/pkg/rpc"
-	"github.com/spf13/cobra"
+	"github.com/krobertson/chia-garden/pkg/utils"
 
 	"github.com/nats-io/nats.go"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	_ "net/http/pprof"
 )
@@ -27,13 +29,29 @@ availability of a new plot file.`,
 
 	harvesterPaths []string
 	maxTransfers   int64
+	httpServerIP   string
+	httpServerPort int
 )
 
 func init() {
 	cli.RootCmd.AddCommand(HarvesterCmd)
 
+	viper.SetDefault("harvester.max_transfers", 5)
+	viper.SetDefault("harvester.http_ip", utils.GetHostIP().String())
+	viper.SetDefault("harvester.http_port", 3434)
+
+	viper.BindEnv("harvester.max_transfers")
+	viper.BindEnv("harvester.http_ip")
+	viper.BindEnv("harvester.http_port")
+
 	HarvesterCmd.Flags().StringSliceVarP(&harvesterPaths, "path", "p", nil, "Paths to store plots")
-	HarvesterCmd.Flags().Int64VarP(&maxTransfers, "max-transfers", "t", 5, "Max concurrent transfers")
+	HarvesterCmd.Flags().Int64VarP(&maxTransfers, "max-transfers", "t", viper.GetInt64("harvester.max_transfers"), "Max concurrent transfers")
+	HarvesterCmd.Flags().StringVarP(&httpServerIP, "http-ip", "", viper.GetString("harvester.http_ip"), "IP to use to identify itself (mainly need if in Docker)")
+	HarvesterCmd.Flags().IntVarP(&httpServerPort, "http-port", "", viper.GetInt("harvester.http_port"), "Port to handle transfers")
+
+	viper.BindPFlag("harvester.max_transfers", HarvesterCmd.Flags().Lookup("max-transfers"))
+	viper.BindPFlag("harvester.http_ip", HarvesterCmd.Flags().Lookup("http-ip"))
+	viper.BindPFlag("harvester.http_port", HarvesterCmd.Flags().Lookup("http-port"))
 }
 
 func cmdHarvester(cmd *cobra.Command, args []string) {

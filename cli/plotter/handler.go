@@ -20,6 +20,12 @@ var (
 	failedPlotMutex = sync.Mutex{}
 )
 
+func plotworker(client *rpc.NatsPlotterClient, ch <-chan string) {
+	for plot := range ch {
+		handlePlot(client, plot)
+	}
+}
+
 func handlePlot(client *rpc.NatsPlotterClient, plot string) {
 	// gather info
 	fi, err := os.Stat(plot)

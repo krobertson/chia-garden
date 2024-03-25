@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/krobertson/chia-garden/pkg/types"
-	"github.com/krobertson/chia-garden/pkg/utils"
 
 	"github.com/dustin/go-humanize"
 )
@@ -38,11 +37,13 @@ type harvester struct {
 // the provided plot paths. It will return an error if any of the paths do not
 // exist, or are not a directory.
 func newHarvester(paths []string) (*harvester, error) {
+	hostport := fmt.Sprintf("%s:%d", httpServerIP, httpServerPort)
 	h := &harvester{
 		plots:       make(map[string]*plotPath),
 		sortedPlots: make([]*plotPath, len(paths)),
-		hostPort:    fmt.Sprintf("%s:3434", utils.GetHostIP().String()),
+		hostPort:    hostport,
 	}
+	log.Printf("Using http://%s for transfers...", hostport)
 
 	// ensure we have at least one
 	if len(paths) == 0 {
@@ -76,7 +77,7 @@ func newHarvester(paths []string) (*harvester, error) {
 
 	// FIXME ideally handle graceful shutdown of existing transfers
 	http.HandleFunc("/", h.httpHandler)
-	go http.ListenAndServe(":3434", nil)
+	go http.ListenAndServe(fmt.Sprintf(":%d", httpServerPort), nil)
 
 	return h, nil
 }
