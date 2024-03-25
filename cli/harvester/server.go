@@ -75,6 +75,9 @@ func newHarvester(paths []string) (*harvester, error) {
 		pp.updateFreeSpace()
 		h.plots[p] = pp
 		h.sortedPlots[i] = pp
+
+		log.Printf("Registred plot path: %s [%s free / %s total]",
+			p, humanize.IBytes(pp.freeSpace), humanize.IBytes(pp.totalSpace))
 	}
 
 	// sort the paths

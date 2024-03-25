@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/krobertson/chia-garden/cli"
@@ -32,6 +33,7 @@ availability of a new plot file.`,
 	}
 
 	harvesterPaths []string
+	expandPaths    []string
 	maxTransfers   int64
 	httpServerIP   string
 	httpServerPort int
@@ -48,7 +50,8 @@ func init() {
 	viper.BindEnv("harvester.http_ip")
 	viper.BindEnv("harvester.http_port")
 
-	HarvesterCmd.Flags().StringSliceVarP(&harvesterPaths, "path", "p", nil, "Paths to store plots")
+	HarvesterCmd.Flags().StringSliceVarP(&harvesterPaths, "path", "p", nil, "Path to store plots")
+	HarvesterCmd.Flags().StringSliceVarP(&expandPaths, "expand-path", "", nil, "Path containing multiple directories to store plots")
 	HarvesterCmd.Flags().Int64VarP(&maxTransfers, "max-transfers", "t", viper.GetInt64("harvester.max_transfers"), "Max concurrent transfers")
 	HarvesterCmd.Flags().StringVarP(&httpServerIP, "http-ip", "", viper.GetString("harvester.http_ip"), "IP to use to identify itself (mainly need if in Docker)")
 	HarvesterCmd.Flags().IntVarP(&httpServerPort, "http-port", "", viper.GetInt("harvester.http_port"), "Port to handle transfers")
@@ -66,6 +69,26 @@ func cmdHarvester(cmd *cobra.Command, args []string) {
 		log.Fatal("Failed to connect to NATS: ", err)
 	}
 	defer conn.Close()
+
+	// process expandPaths and append to harvesterPaths
+	for _, ep := range expandPaths {
+		p, err := filepath.Abs(ep)
+		if err != nil {
+			log.Fatalf("Failed to resolve path %s: %v", ep, err)
+		}
+
+		items, err := os.ReadDir(p)
+		if err != nil {
+			log.Fatalf("Failed to evaluate path %s: %v", p, err)
+		}
+		for _, de := range items {
+			if !de.IsDir() {
+				continue
+			}
+
+			harvesterPaths = append(harvesterPaths, filepath.Join(p, de.Name()))
+		}
+	}
 
 	server, err := newHarvester(harvesterPaths)
 	if err != nil {
