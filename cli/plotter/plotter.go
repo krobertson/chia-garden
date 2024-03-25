@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/krobertson/chia-garden/cli"
 	"github.com/krobertson/chia-garden/pkg/rpc"
@@ -30,19 +29,24 @@ plotter nodes and to find and transport them to a harvester for use.`,
 
 	plotterPaths []string
 	maxTransfers int
+	plotSuffix   string
 )
 
 func init() {
 	cli.RootCmd.AddCommand(PlotterCmd)
 
 	viper.SetDefault("plotter.max_transfers", 2)
+	viper.SetDefault("plotter.suffix", "plot")
 
 	viper.BindEnv("plotter.max_transfers")
+	viper.BindEnv("plotter.suffix")
 
 	PlotterCmd.Flags().StringSliceVarP(&plotterPaths, "path", "p", nil, "Paths to watch for plots")
 	PlotterCmd.Flags().IntVarP(&maxTransfers, "max-transfers", "t", viper.GetInt("plotter.max_transfers"), "Max concurrent transfers")
+	PlotterCmd.Flags().StringVarP(&plotSuffix, "suffix", "s", viper.GetString("plotter.suffix"), "The suffix or extension of plot files")
 
 	viper.BindPFlag("plotter.max_transfers", PlotterCmd.Flags().Lookup("max-transfers"))
+	viper.BindPFlag("plotter.suffix", PlotterCmd.Flags().Lookup("suffix"))
 }
 
 func cmdPlotter(cmd *cobra.Command, args []string) {
@@ -84,8 +88,8 @@ func cmdPlotter(cmd *cobra.Command, args []string) {
 					continue
 				}
 
-				// filter to only the *.plot files
-				if !strings.HasSuffix(event.Name, ".plot") {
+				// filter to only the plot files
+				if filepath.Ext(event.Name) != "."+plotSuffix {
 					continue
 				}
 
@@ -113,8 +117,8 @@ func cmdPlotter(cmd *cobra.Command, args []string) {
 		for _, de := range files {
 			name := de.Name()
 
-			// filter to only *.plot files
-			if !strings.HasSuffix(name, ".plot") {
+			// filter to only plot files
+			if filepath.Ext(name) != "."+plotSuffix {
 				continue
 			}
 

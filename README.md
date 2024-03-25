@@ -95,7 +95,9 @@ Docker.
 * `GARDEN_HARVESTER_HTTP_IP`: The IP address the `harvester` command should use to identify itself.
 * `GARDEN_HARVESTER_HTTP_PORT`: The port the `harvester` command should use to
   listen for transfer connections on.
-* `GARDEN_HARVESTER_MAX_TRANSFRES`: The maximum number of transfer the
+* `GARDEN_HARVESTER_MAX_TRANSFERS`: The maximum number of transfer the
   `harvester` command should allow at a time.
-* `GARDEN_PLOTTER_MAX_TRANSFRES`: The maximum number of transfer the `plotter`
+* `GARDEN_PLOTTER_MAX_TRANSFERS`: The maximum number of transfer the `plotter`
   command should allow at a time.
+* `GARDEN_PLOTTER_SUFFIX`: The suffix to use to identify plot files. Default is
+  `plot`, can be updated to `drplot` for DrPlotter.
