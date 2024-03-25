@@ -8,7 +8,9 @@ type PlotRequest struct {
 }
 
 type PlotResponse struct {
-	Url string `json:"url"`
+	Hostname string `json:"hostname"`
+	Store    string `json:"store"`
+	Url      string `json:"url"`
 }
 
 type PlotLocateRequest struct {

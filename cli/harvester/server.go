@@ -45,39 +45,42 @@ func newHarvester(paths []string) (*harvester, error) {
 	hostport := fmt.Sprintf("%s:%d", httpServerIP, httpServerPort)
 	h := &harvester{
 		plots:       make(map[string]*plotPath),
-		sortedPlots: make([]*plotPath, len(paths)),
+		sortedPlots: make([]*plotPath, 0),
 		hostPort:    hostport,
 	}
 	log.Printf("Using http://%s for transfers...", hostport)
 
-	// ensure we have at least one
-	if len(paths) == 0 {
-		return nil, fmt.Errorf("at least one plot path must be specified")
-	}
-
 	// validate the plots exist and add them in
-	for i, p := range paths {
+	for _, p := range paths {
 		p, err := filepath.Abs(p)
 		if err != nil {
-			return nil, fmt.Errorf("path %s failed expansion: %v", p, err)
+			log.Printf("Path %s failed expansion, skipping: %v", p, err)
+			continue
 		}
 
 		fi, err := os.Stat(p)
 		if err != nil {
-			return nil, fmt.Errorf("path %s failed validation: %v", p, err)
+			log.Printf("Path %s failed validation: %v, skipping", p, err)
+			continue
 		}
 
 		if !fi.IsDir() {
-			return nil, fmt.Errorf("path %s is not a directory", p)
+			log.Printf("Path %s is not a directory, skipping", p)
+			continue
 		}
 
 		pp := &plotPath{path: p}
 		pp.updateFreeSpace()
 		h.plots[p] = pp
-		h.sortedPlots[i] = pp
+		h.sortedPlots = append(h.sortedPlots, pp)
 
 		log.Printf("Registred plot path: %s [%s free / %s total]",
 			p, humanize.IBytes(pp.freeSpace), humanize.IBytes(pp.totalSpace))
+	}
+
+	// ensure we have at least one
+	if len(h.sortedPlots) == 0 {
+		return nil, fmt.Errorf("at least one valid plot path must be specified")
 	}
 
 	// sort the paths
@@ -113,7 +116,9 @@ func (h *harvester) PlotReady(req *types.PlotRequest) (*types.PlotResponse, erro
 
 	// generate response
 	resp := &types.PlotResponse{
-		Url: fmt.Sprintf("http://%s%s", h.hostPort, filepath.Join(plot.path, req.Name)),
+		Hostname: systemHostname,
+		Store:    plot.path,
+		Url:      fmt.Sprintf("http://%s%s", h.hostPort, filepath.Join(plot.path, req.Name)),
 	}
 
 	// generate and handle the taint
@@ -223,6 +228,7 @@ func (h *harvester) httpHandler(w http.ResponseWriter, req *http.Request) {
 	defer f.Close()
 
 	// perform the copy
+	log.Printf("Receiving plot at %s", req.URL.Path)
 	start := time.Now()
 	bytes, err := io.Copy(f, req.Body)
 	if err != nil {

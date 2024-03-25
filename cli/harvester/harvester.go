@@ -74,12 +74,14 @@ func cmdHarvester(cmd *cobra.Command, args []string) {
 	for _, ep := range expandPaths {
 		p, err := filepath.Abs(ep)
 		if err != nil {
-			log.Fatalf("Failed to resolve path %s: %v", ep, err)
+			log.Printf("Failed to resolve path %s, skipping: %v", ep, err)
+			continue
 		}
 
 		items, err := os.ReadDir(p)
 		if err != nil {
-			log.Fatalf("Failed to evaluate path %s: %v", p, err)
+			log.Fatalf("Failed to evaluate path %s, skipping: %v", p, err)
+			continue
 		}
 		for _, de := range items {
 			if !de.IsDir() {
