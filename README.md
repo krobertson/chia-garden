@@ -15,7 +15,7 @@ load balance plots as their produced to the harvesters with the fewest active
 transfers and evenly distribute them across all the disks on an individual
 harvester.
 
-##### How does it handle distribution?
+#### How does it handle distribution?
 
 When a new plot file is found on a harvester, it will publish a message to NATS
 notifying harvesters of the file being available and noting its size.
@@ -39,7 +39,7 @@ slow. For instance:
 * If the harvester has no transfers and plenty of storage, no delay, respond
   immediately!
 
-##### Optimizations Applied
+#### Optimizations Applied
 
 A number of optimizations are instrumented in how the transfers are performed.
 
