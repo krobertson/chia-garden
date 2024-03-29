@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	taintTransfers = 20 * time.Millisecond
-	taintFreeSpace = 20 * time.Millisecond
+	taintTransfers = 50 * time.Millisecond
+	taintFreeSpace = 50 * time.Millisecond
 )
 
 var (
@@ -121,6 +121,7 @@ func (h *harvester) PlotReady(req *types.PlotRequest) (*types.PlotResponse, erro
 
 	// generate and handle the taint
 	d := h.generateTaint(plot)
+	log.Printf("Responding to plot request after %s taint", d.String())
 	time.Sleep(d)
 	return resp, nil
 }
