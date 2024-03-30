@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"syscall"
 
 	"github.com/krobertson/chia-garden/cli"
@@ -62,6 +63,7 @@ func init() {
 }
 
 func cmdHarvester(cmd *cobra.Command, args []string) {
+	log.Printf("GOMAXPROCS set to %d", runtime.GOMAXPROCS(0))
 	log.Print("Starting harvester-client...")
 
 	conn, err := nats.Connect(cli.NatsUrl, nats.MaxReconnects(-1))

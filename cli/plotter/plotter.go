@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/krobertson/chia-garden/cli"
 	"github.com/krobertson/chia-garden/pkg/rpc"
@@ -50,6 +51,7 @@ func init() {
 }
 
 func cmdPlotter(cmd *cobra.Command, args []string) {
+	log.Printf("GOMAXPROCS set to %d", runtime.GOMAXPROCS(0))
 	log.Print("Starting plotter-client...")
 
 	// connect to nats
