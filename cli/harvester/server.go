@@ -276,8 +276,8 @@ func (h *harvester) generateTaint(plot *plotPath) time.Duration {
 
 	// apply for ratio of free disk space. this prefers harvesters with emptier
 	// disks
-	percent := 100 * plot.freeSpace / plot.totalSpace
-	d += time.Duration(percent) * taintFreeSpace / 1000
+	percent := 100 - (100 * plot.freeSpace / plot.totalSpace)
+	d += time.Duration(percent) * taintFreeSpace / 100
 
 	return d
 }
