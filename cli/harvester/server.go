@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	taintTransfers = 50 * time.Millisecond
+	taintTransfers = 10 * time.Millisecond
 	taintFreeSpace = 50 * time.Millisecond
 )
 

@@ -21,18 +21,30 @@ var (
 	failedPlotMutex = sync.Mutex{}
 )
 
-func plotworker(client *rpc.NatsPlotterClient, ch <-chan string) {
+func plotworker(client *rpc.NatsPlotterClient, ch chan string) {
 	for plot := range ch {
-		handlePlot(client, plot)
+		ok := handlePlot(client, plot)
+		if !ok {
+			// failed to send it, so requeue
+			ch <- plot
+		}
 	}
 }
 
-func handlePlot(client *rpc.NatsPlotterClient, plot string) {
+// handlePlot will publish a message to find a location to send the plot. In
+// some failure cases, like not finding a host to send it to, it will sleep for
+// a minute and retry up to 10 times. The goal is that there may be transient
+// issues or machines at capacity, so to slow down the sending. In the case of a
+// failure on the other server end, it will retry immediately. If it is able to
+// get the plot sent successfully, it will return true. If it is not, and it
+// times out in retries, it will return false so the caller can requeue the
+// plot.
+func handlePlot(client *rpc.NatsPlotterClient, plot string) bool {
 	// gather info
 	fi, err := os.Stat(plot)
 	if err != nil {
 		log.Print("Failed to stat plot file", plot, err)
-		return
+		return true
 	}
 	req := &types.PlotRequest{
 		Name: filepath.Base(plot),
@@ -58,7 +70,7 @@ func handlePlot(client *rpc.NatsPlotterClient, plot string) {
 		f, err := os.Open(plot)
 		if err != nil {
 			log.Print("Failed to open plot file, bailing", err)
-			return
+			return false
 		}
 
 		// if we got a response, dispatch the transfer
@@ -88,7 +100,7 @@ func handlePlot(client *rpc.NatsPlotterClient, plot string) {
 			log.Printf("Finished transfering plot %s (%s, %f secs, %s/sec)",
 				plot, humanize.IBytes(uint64(req.Size)), seconds, humanize.Bytes(uint64(float64(req.Size)/seconds)))
 			os.Remove(plot)
-			return
+			return true
 
 		case 500: // transfer failure due to server error, wait a minute and retry
 			log.Print("Received 500 status code from server. Sleep and retry.", httpresp.Status)
@@ -108,4 +120,5 @@ func handlePlot(client *rpc.NatsPlotterClient, plot string) {
 	failedPlotMutex.Lock()
 	failedPlots = append(failedPlots, plot)
 	failedPlotMutex.Unlock()
+	return false
 }
