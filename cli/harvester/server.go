@@ -100,11 +100,16 @@ func newHarvester(paths []string) (*harvester, error) {
 // slight taint to allow the most ideal system to originally respond the
 // fastest.
 func (h *harvester) PlotReady(req *types.PlotRequest) (*types.PlotResponse, error) {
+	// check if we're maxed on concurrent transfers
+	if h.transfers.Load() >= maxTransfers {
+		return nil, nil
+	}
+
 	// pick a plot. This should return the one with the most free space that
 	// isn't busy.
 	plot := h.pickPlot()
 	if plot == nil {
-		return nil, fmt.Errorf("no paths available")
+		return nil, nil
 	}
 
 	// check if we have enough free space
