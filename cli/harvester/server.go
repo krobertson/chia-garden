@@ -212,6 +212,7 @@ func (h *harvester) httpHandler(w http.ResponseWriter, req *http.Request) {
 		log.Printf("Request to store %s, but not enough space (%s / %s)",
 			req.URL.Path, humanize.Bytes(uint64(req.ContentLength)), humanize.Bytes(plotPath.freeSpace))
 		w.WriteHeader(413)
+		return
 	}
 
 	// validate the file doesn't already exist, as a safeguard
